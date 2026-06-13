@@ -1,5 +1,8 @@
 # Introduction to DeRand
 
+> [!WARNING]  
+> This repository is under active development and is not ready for production use. Breaking changes, bugs, and incomplete features may occur at any time.
+
 ## Overview
 
 DeRand Protocol is a decentralized randomness protocol powered by Verifiable Delay Functions (VDFs).
