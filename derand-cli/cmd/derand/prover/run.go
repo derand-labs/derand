@@ -6,6 +6,7 @@ import (
 	"derand-cli/proverlogic"
 	"derand-cli/utils"
 	"fmt"
+	"slices"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/v2"
 	"github.com/ethereum/go-ethereum/common"
@@ -60,12 +61,16 @@ var runCmd = &cobra.Command{
 
 		eventChan := make(chan *gen.DeRandAssignRequest, 1)
 
-		var startFilter uint64
-		if currentChain.LastProverWatchedBlock != 0 {
-			startFilter = currentChain.LastProverWatchedBlock
+		latestBlockNumber, err := backend.BlockNumber(cmd.Context())
+		if err != nil {
+			return err
 		}
 
-		logs, err := derand.FilterAssignRequest(&bind.FilterOpts{Start: startFilter}, nil, []common.Address{addr})
+		if currentChain.LastProverWatchedBlock < latestBlockNumber-50000 {
+			currentChain.LastProverWatchedBlock = latestBlockNumber - 49990
+		}
+
+		logs, err := derand.FilterAssignRequest(&bind.FilterOpts{Start: currentChain.LastProverWatchedBlock}, nil, []common.Address{addr})
 		if err != nil {
 			return err
 		}
@@ -80,12 +85,7 @@ var runCmd = &cobra.Command{
 			}
 		}()
 
-		var startWatch *uint64
-		if currentChain.LastProverWatchedBlock != 0 {
-			startWatch = &currentChain.LastProverWatchedBlock
-		}
-
-		s, err := derand.WatchAssignRequest(&bind.WatchOpts{Start: startWatch}, eventChan, nil, []common.Address{addr})
+		s, err := derand.WatchAssignRequest(&bind.WatchOpts{Start: &currentChain.LastProverWatchedBlock}, eventChan, nil, []common.Address{addr})
 		if err != nil {
 			return err
 		}
@@ -127,6 +127,25 @@ var runCmd = &cobra.Command{
 						return err
 					}
 				}
+
+				currentRegisteredProfiles, err := derand.RegisteredProfilesOf(nil, addr)
+				if err != nil {
+					return err
+				}
+
+				for _, oldProfile := range registeredProfiles {
+					if !slices.Contains(currentRegisteredProfiles, oldProfile) {
+						utils.PrintTitle(utils.Red(
+							fmt.Sprintf(
+								"[IMPORTANT] You are automatically unregistered from profile %d[%d]",
+								oldProfile.Id, oldProfile.Version,
+							)))
+					}
+				}
+				// Do not re-assign registeredProfile by newRegisteredProfiles.
+				// The reason is the log for proving a request is too long, the
+				// prover may not see the IMPORTANT warnings of unregistering.
+				// So that we need to repeat this warning every request.
 			}
 		}
 

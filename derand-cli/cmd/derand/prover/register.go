@@ -66,6 +66,10 @@ var registerCmd = &cobra.Command{
 			currentChain.LastProverWatchedBlock = receipt.BlockNumber.Uint64()
 		}
 
+		if err := cfg.Save(); err != nil {
+			return err
+		}
+
 		return nil
 	},
 }
